@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>萬聖節 AR 尋寶大作戰 - Halloween Monster Catcher</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- jsQR -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script>
+        window.ensureJsQR = function () {
+            if (typeof window.jsQR === "function") {
+                return Promise.resolve(true);
+            }
+
+            return new Promise((resolve) => {
+                const fallback = document.createElement("script");
+                fallback.src = "https://unpkg.com/jsqr@1.4.0/dist/jsQR.js";
+                fallback.onload = () => resolve(typeof window.jsQR === "function");
+                fallback.onerror = () => resolve(false);
+                document.head.appendChild(fallback);
+            });
+        };
+    </script>
+
+    <!-- QRCode Generator -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        spooky: {
+                            purple: '#1c0a35',
+                            dark: '#0d021a',
+                            orange: '#ff6b00',
+                            green: '#00ff66',
+                            yellow: '#ffd700',
+                            red: '#e63946'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Creepster&family=Noto+Sans+TC:wght@500;700;900&display=swap');
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #0d021a;
+            color: #ffffff;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+            min-height: 100dvh;
+        }
+
+        .font-spooky {
+            font-family: 'Creepster', cursive, 'Noto Sans TC', sans-serif;
+        }
+
+        .safe-padding {
+            padding-top: max(12px, env(safe-area-inset-top));
+            padding-bottom: max(16px, env(safe-area-inset-bottom));
+            padding-left: max(16px, env(safe-area-inset-left));
+            padding-right: max(16px, env(safe-area-inset-right));
+        }
+
+        /* =========================
+           CAMERA VIDEO
+        ========================= */
+
+        #arVideo {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+            background: #000;
+            z-index: 1;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity .35s ease, visibility .35s ease;
+        }
+
+        #arVideo.camera-active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #simulatedBg {
+            z-index: 0;
+        }
+
+        /* =========================
+           SCAN LASER
+        ========================= */
+
+        @keyframes scanBeam {
+            0% {
+                top: 4%;
+                opacity: 0.8;
+            }
+
+            50% {
+                top: 90%;
+                opacity: 1;
+            }
+
+            100% {
+                top: 4%;
+                opacity: 0.8;
+            }
+        }
+
+        .scan-laser-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                #00ff66,
+                #ffd700,
+                #00ff66,
+                transparent
+            );
+            box-shadow: 0 0 15px #00ff66, 0 0 8px #ffd700;
+            animation: scanBeam 2.3s ease-in-out infinite;
+        }
+
+        /* =========================
+           MONSTER FLOAT
+        ========================= */
+
+        @keyframes arFloat {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg) scale(1);
+            }
+            50% {
+                transform: translateY(-14px) rotate(2deg) scale(1.04);
+            }
+        }
+
+        .ar-monster-float {
+            animation: arFloat 3s ease-in-out infinite;
+        }
+
+        /* =========================
+           PUMPKIN
+        ========================= */
+
+        @keyframes ballGlow {
+            0%, 100% {
+                filter: drop-shadow(0 0 10px rgba(255, 107, 0, 0.7));
+                transform: scale(1);
+            }
+            50% {
+                filter: drop-shadow(0 0 25px rgba(255, 215, 0, 1));
+                transform: scale(1.06);
+            }
+        }
+
+        .pumpkin-glow {
+            animation: ballGlow 2s infinite ease-in-out;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1c0a35;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ff6b00;
+            border-radius: 4px;
+        }
+
+        .camera-off-content {
+            z-index: 5;
+        }
+
+        .start-camera-button {
+            min-height: 58px;
+            box-shadow: 0 0 25px rgba(0, 255, 102, .25), 0 8px 30px rgba(0, 0, 0, .4);
+        }
+    </style>
+</head>
+
+<body class="flex flex-col justify-between items-center relative bg-black">
+
+    <!-- =========================================================
+         HEADER
+    ========================================================== -->
+
+    <header class="w-full max-w-md bg-spooky-purple/95 border-b border-orange-500/40 p-3 safe-padding flex justify-between items-center z-40 backdrop-blur-md shadow-xl shrink-0">
+        <div class="flex items-center space-x-2">
+            <div class="w-9 h-9 rounded-full bg-spooky-orange/20 border border-spooky-orange flex items-center justify-center text-spooky-orange">
+                <i class="fa-solid fa-ghost text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-spooky text-xl text-spooky-orange tracking-wider leading-none">
+                    HALLOWEEN AR
+                </h1>
+                <p class="text-[11px] text-purple-300 font-bold">
+                    萬聖闖關尋寶
+                </p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- QR Generator -->
+            <button onclick="openQrModal()" class="bg-purple-900/90 hover:bg-purple-800 border border-purple-400/50 rounded-full px-3 py-2 text-xs text-purple-100 flex items-center gap-1.5 active:scale-95 transition min-h-[42px] shadow-md">
+                <i class="fa-solid fa-qrcode text-spooky-yellow text-sm"></i>
+                <span class="font-bold">QR碼圖集</span>
+            </button>
+
+            <!-- Handbook -->
+            <button onclick="openHandbook()" class="flex items-center bg-black/80 border border-orange-500/70 rounded-full px-3.5 py-2 shadow-
